@@ -4,12 +4,12 @@ from setuptools import setup, find_packages
 with open("README.md", "r") as fh:
     LONG_DESCRIPTION = fh.read()
 
-setup(name='spreadsheet-wrangeler',
+setup(name='spreadsheet-wrangler',
       version='0.0.1',
       description='Spreadsheet editing tools',
       long_description=LONG_DESCRIPTION,
       long_description_content_type="text/markdown",
-      url='https://github.com/snhobbs/spreadsheet_wrangeler',
+      url='https://github.com/snhobbs/spreadsheet_wrangler',
       author='Simon Hobbs',
       author_email='simon.hobbs@electrooptical.net',
       license='MIT',
@@ -24,5 +24,10 @@ setup(name='spreadsheet-wrangeler',
       test_suite='nose.collector',
       tests_require=['nose'],
       scripts=["spreadsheet_wrangler.py"],
-      include_package_data=True,
+      entry_points={
+        "console_scripts": [
+            "spreadsheet_wrangler=spreadsheet_wrangler.__main__:main",
+        ],
+      },
+      include_package_data=False,
       zip_safe=True)

@@ -179,5 +179,9 @@ def compare_command(l, r, on, columns, pseudonyms):
     for _, row in pd.DataFrame(errors).iterrows():
         print("[{}:{}] Comparison Failure: {}".format(row["column"], row["line"], row["description"]))
 
-if __name__ == "__main__":
+
+def main():
     gr1()
+
+if __name__ == "__main__":
+    main()
