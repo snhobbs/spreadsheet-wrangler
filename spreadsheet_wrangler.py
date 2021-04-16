@@ -1,6 +1,6 @@
 '''
 spreadsheet_wrangler.py
-Version 0.1.0
+Version 0.1.1
 '''
 import click
 import pandas as pd  # type: ignore
@@ -8,7 +8,7 @@ import csv
 import os
 import numpy as np
 import copy
-import re
+import ast
 import json
 
 def read_pseodonyms(string):
@@ -71,13 +71,10 @@ def read_file_to_df(fname: str) -> dict:
 def uncluster(df: pd.DataFrame, grouped_column: str) -> pd.DataFrame:
     formated_df = df[df[grouped_column] != np.nan]
     expanded_rows = []
-    ref_regex = re.compile("[A-z]+[0-9]+")
     for _, row in formated_df.iterrows():
-        refs = row[grouped_column]
-        if type(refs) != str:
-            continue
-        for ref in ref_regex.findall(refs):
-            row[grouped_column] = ref
+        group = ast.literal_eval(row[grouped_column])
+        for item in group:
+            row[grouped_column] = item
             expanded_rows.append(copy.deepcopy(row))
     expanded_df = pd.DataFrame(expanded_rows)
     return expanded_df
