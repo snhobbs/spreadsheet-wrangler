@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
     LONG_DESCRIPTION = fh.read()
 
 setup(name='spreadsheet-wrangler',
-      version='0.0.1',
+      version='0.1.0',
       description='Spreadsheet editing tools',
       long_description=LONG_DESCRIPTION,
       long_description_content_type="text/markdown",

@@ -1,5 +1,6 @@
 '''
 spreadsheet_wrangler.py
+Version 0.1.0
 '''
 import click
 import pandas as pd  # type: ignore
