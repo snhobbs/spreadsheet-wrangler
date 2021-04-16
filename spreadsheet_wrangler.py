@@ -67,7 +67,7 @@ def read_file_to_df(fname: str) -> dict:
                 comment="#", skip_blank_lines=True)
     return df
 
-def expand_grouped(df: pd.DataFrame, grouped_column: str) -> pd.DataFrame:
+def uncluster(df: pd.DataFrame, grouped_column: str) -> pd.DataFrame:
     formated_df = df[df[grouped_column] != np.nan]
     expanded_rows = []
     ref_regex = re.compile("[A-z]+[0-9]+")
@@ -121,12 +121,13 @@ def cluster_command(spreadsheet, on, column, pseudonyms):
 
 @click.option("--spreadsheet", "-s", type=str, required=True, help="Main spreadsheet")
 @click.option("--column", type=str, required=True, help="Clustered column")
+@click.option("--pseudonyms", "-p", type=str, default="", help="Alternative column names in json format")
 @gr1.command("uncluster", help='''Uncluster spreadsheet by column value''')
 def uncluster_command(spreadsheet, column, pseudonyms):
     pseudonyms=read_pseodonyms(pseudonyms)
     fname = os.path.split(os.path.splitext(spreadsheet)[0])[-1]
     df = extract_columns_by_pseudonyms(read_file_to_df(spreadsheet), pseudonyms)
-    expand_grouped(df, column).to_excel(f'{fname}_Unclustered_On_{column}.xlsx', index=False)
+    uncluster(df, column).to_excel(f'{fname}_Unclustered_On_{column}.xlsx', index=False)
 
 @click.option("-l", type=str, required=True, help="Left merge")
 @click.option("-r", type=str, required=True, help="Right merge")
@@ -142,12 +143,29 @@ def merge(l, r, on, pseudonyms):
     fname_r = os.path.split(os.path.splitext(r)[0])[-1]
     df.to_excel(f'{fname_l}_Merged{fname_r}_On_{on}.xlsx', index=False)
 
+def compare(left, right, columns, on):
+    errors = {"line":[], "column": [], "description": []}
+    for pt in list(left[on]) + list(right[on]):
+        matching_rows_left = left[left[on] == pt]
+        matching_rows_right = right[right[on] == pt]
+        for column in columns:
+            for lc, rc in zip(matching_rows_left[column], matching_rows_right[column]):
+                if lc != rc:
+                    # filter out nan
+                    if lc is np.nan and rc is np.nan:
+                        continue
+                    errors["line"].append(pt)
+                    errors["column"].append(column)
+                    errors["description"].append("{} ({}) != {} ({})".format(lc, type(lc), rc, type(rc)))
+    return errors
+
 @click.option("-l", type=str, required=True, help="First spreadsheet")
 @click.option("-r", type=str, required=True, help="Second spreadsheet")
+@click.option("--on", type=str, default=None, help="Column to compare on")
 @click.option("--columns", "-c", type=str, default=None, help="Columns to check, leave blank to check all with same name")
 @click.option("--pseudonyms", "-p", type=str, default="", help="Alternative column names in json format")
-@gr1.command(help="Compares the given columns, passes if all given columns exist in both files and values are the same")
-def compare(l, r, columns, pseudonyms):
+@gr1.command("compare", help="Compares the given columns, passes if all given columns exist in both files and values are the same")
+def compare_command(l, r, on, columns, pseudonyms):
     pseudonyms=read_pseodonyms(pseudonyms)
     left = extract_columns_by_pseudonyms(read_file_to_df(l), pseudonyms)
     right = extract_columns_by_pseudonyms(read_file_to_df(r), pseudonyms)
@@ -156,16 +174,10 @@ def compare(l, r, columns, pseudonyms):
     else:
         columns = [pt.strip() for pt in columns.split(",").strip(",")]
 
+    errors = compare(left, right, columns, on)
     print("Comparing columns:", columns)
-    for column in columns:
-        line = 0
-        for lc, rc in zip(left[column], right[column]):
-            line += 1
-            if lc != rc:
-                # filter out nan
-                if lc is np.nan and rc is np.nan:
-                    continue
-                print("[{}:{}] Comparison Failure: {} ({}) != {} ({})".format(column, line, lc, type(lc), rc, type(rc)))
+    for _, row in pd.DataFrame(errors).iterrows():
+        print("[{}:{}] Comparison Failure: {}".format(row["column"], row["line"], row["description"]))
 
 if __name__ == "__main__":
     gr1()
