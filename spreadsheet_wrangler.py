@@ -10,14 +10,16 @@ import numpy as np
 import copy
 import ast
 import json
+import re
 
-def read_pseodonyms(string):
+
+def read_pseodonyms(string: str) -> dict:
     if len(string.strip()) == 0:
         return {}
     return json.loads(string)
 
 '''Remove the values that are duplicates, prefer the rows with a value. column is the unique value column, prefer_column is the one to look at the longest argument of'''
-def make_unique(df, column, prefer_column=None):
+def make_unique(df: pd.DataFrame, column: str, prefer_column=None):
     not_unique_values = [val for val in df[column] if list(df[column]).count(val) > 1]
     for value in not_unique_values:
         while list(df[column]).count(ref) > 1:
@@ -35,7 +37,7 @@ def make_unique(df, column, prefer_column=None):
     return df
 
 '''Finds knowns pseudonyms for columns and includes names them correctly for passing as argument'''
-def extract_columns_by_pseudonyms(df, column_names):
+def extract_columns_by_pseudonyms(df: pd.DataFrame, column_names: dict) -> pd.DataFrame:
     included = []
     for name in df.columns:
         for column, names in column_names.items():
@@ -43,7 +45,7 @@ def extract_columns_by_pseudonyms(df, column_names):
                 df.rename(columns={name:column}, inplace=True)
     return df
 
-def read_csv_to_df(fname: str) -> dict:
+def read_csv_to_df(fname: str) -> pd.DataFrame:
     # Use automatic dialect detection by setting sep to None and engine to python
     kwargs = dict(
         header=0, skipinitialspace=True,
@@ -86,7 +88,7 @@ def read_file_to_df(fname: str) -> dict:
                 comment="#", skip_blank_lines=True)
     return df
 
-def uncluster(df: pd.DataFrame, grouped_column: str) -> pd.DataFrame:
+def uncluster_ast(df: pd.DataFrame, grouped_column: str) -> pd.DataFrame:
     formated_df = df[df[grouped_column] != np.nan]
     expanded_rows = []
     for _, row in formated_df.iterrows():
@@ -96,6 +98,25 @@ def uncluster(df: pd.DataFrame, grouped_column: str) -> pd.DataFrame:
             expanded_rows.append(copy.deepcopy(row))
     expanded_df = pd.DataFrame(expanded_rows)
     return expanded_df
+
+
+def uncluster_regex(df: pd.DataFrame, grouped_column: str, expression: str = "[A-z]+[0-9]+") -> pd.DataFrame:
+    formated_df = df[df[grouped_column] != np.nan]
+    expanded_rows = []
+    ref_regex = re.compile(expression)
+    for _, row in formated_df.iterrows():
+        refs = row[grouped_column]
+        if type(refs) != str:
+            continue
+        for ref in ref_regex.findall(refs):
+            row[grouped_column] = ref
+            expanded_rows.append(copy.deepcopy(row))
+    expanded_df = pd.DataFrame(expanded_rows)
+    return expanded_df
+
+
+def uncluster(df: pd.DataFrame, grouped_column: str) -> pd.DataFrame:
+    return uncluster_ast(df, grouped_column)
 
 '''ref-des will not be a tuple of all the matching lines, the rest of the line is taken to be the first in the file and carried forward'''
 def cluster(df: pd.DataFrame, on: str, column: str) -> pd.DataFrame:
@@ -119,6 +140,28 @@ def cluster(df: pd.DataFrame, on: str, column: str) -> pd.DataFrame:
     df.insert(int(index), column=column, value=clustered)
     return df
 
+def compare(left: pd.DataFrame, right: pd.DataFrame, columns: str, on: str) -> dict:
+    errors = {"line":[], "column": [], "description": []}
+    for pt in list(left[on]) + list(right[on]):
+        matching_rows_left = left[left[on] == pt]
+        matching_rows_right = right[right[on] == pt]
+        for column in columns:
+            for lc, rc in zip(matching_rows_left[column], matching_rows_right[column]):
+                if lc != rc:
+                    # filter out nan
+                    if lc is np.nan and rc is np.nan:
+                        continue
+                    errors["line"].append(pt)
+                    errors["column"].append(column)
+                    errors["description"].append("{} ({}) != {} ({})".format(lc, type(lc), rc, type(rc)))
+    return errors
+
+def filter_df(df: pd.DataFrame, on: str, value, column: str, blank_defaults: bool):
+    if blank_defaults:
+        filtered_df = df.loc[(df[on] == value) | (df[on].isnull())]
+    else:
+        filtered_df = df.loc[(df[on] == value)]
+    return make_unique(filtered_df, column=column, prefer_column=on)
 
 @click.group()
 def gr1():
@@ -159,22 +202,6 @@ def merge(l, r, on, pseudonyms):
     fname_r = os.path.split(os.path.splitext(r)[0])[-1]
     df.to_excel(f'{fname_l}_Merged{fname_r}_On_{on}.xlsx', index=False)
 
-def compare(left, right, columns, on):
-    errors = {"line":[], "column": [], "description": []}
-    for pt in list(left[on]) + list(right[on]):
-        matching_rows_left = left[left[on] == pt]
-        matching_rows_right = right[right[on] == pt]
-        for column in columns:
-            for lc, rc in zip(matching_rows_left[column], matching_rows_right[column]):
-                if lc != rc:
-                    # filter out nan
-                    if lc is np.nan and rc is np.nan:
-                        continue
-                    errors["line"].append(pt)
-                    errors["column"].append(column)
-                    errors["description"].append("{} ({}) != {} ({})".format(lc, type(lc), rc, type(rc)))
-    return errors
-
 @click.option("-l", type=str, required=True, help="First spreadsheet")
 @click.option("-r", type=str, required=True, help="Second spreadsheet")
 @click.option("--on", type=str, default=None, help="Column to compare on")
@@ -195,13 +222,6 @@ def compare_command(l, r, on, columns, pseudonyms):
     for _, row in pd.DataFrame(errors).iterrows():
         print("[{}:{}] Comparison Failure: {}".format(row["column"], row["line"], row["description"]))
 
-def filter(df, on, value, column, blank_defaults):
-    if blank_defaults:
-        filtered_df = df.loc[(df[on] == value) | (df[on].isnull())]
-    else:
-        filtered_df = df.loc[(df[on] == value)]
-    return make_unique(filtered_df, column=column, prefer_column=on)
-
 @click.option("--spreadsheet", "-s", type=str, required=True, help="Spreadsheet to filter from")
 @click.option("--on", type=str, required=True, help="Column to compare on")
 @click.option("--value", type=str, required=True, help="Value to select")
@@ -212,7 +232,7 @@ def filter(df, on, value, column, blank_defaults):
 def filter_command(spreadsheet, on, value, column, blank_defaults, pseudonyms):
     pseudonyms=read_pseodonyms(pseudonyms)
     df = extract_columns_by_pseudonyms(read_file_to_df(spreadsheet), pseudonyms)
-    filtered_df = filter(df, on, value, column, blank_defaults)
+    filtered_df = filter_df(df, on, value, column, blank_defaults)
     fname = os.path.split(os.path.splitext(spreadsheet)[0])[-1]
     filtered_df.to_excel(f'{fname}_Filtered_On_{on}_{value}_by_{column}.xlsx', index=False)
 
