@@ -16,6 +16,24 @@ def read_pseodonyms(string):
         return {}
     return json.loads(string)
 
+'''Remove the values that are duplicates, prefer the rows with a value. column is the unique value column, prefer_column is the one to look at the longest argument of'''
+def make_unique(df, column, prefer_column=None):
+    not_unique_values = [val for val in df[column] if list(df[column]).count(val) > 1]
+    for value in not_unique_values:
+        while list(df[column]).count(ref) > 1:
+            drop_rows = []
+            if prefer_column is None:
+                for i, row in df[df[column] == value].iterrows():
+                    drop_rows.append(i)
+                drop_rows.pop() # keep last row
+            else:
+                min_length = min([str(pt) for pt in df[df[column] == value][prefer_column]])
+                for i, row in df[df[column] == value].iterrows():
+                    if len(str(row[prefer_column])) == min_length:
+                        drop_rows.append(i)
+            df.drop(df.index[drop_rows], inplace=True)
+    return df
+
 '''Finds knowns pseudonyms for columns and includes names them correctly for passing as argument'''
 def extract_columns_by_pseudonyms(df, column_names):
     included = []
@@ -177,6 +195,26 @@ def compare_command(l, r, on, columns, pseudonyms):
     for _, row in pd.DataFrame(errors).iterrows():
         print("[{}:{}] Comparison Failure: {}".format(row["column"], row["line"], row["description"]))
 
+def filter(df, on, value, column, blank_defaults):
+    if blank_defaults:
+        filtered_df = df.loc[(df[on] == value) | (df[on].isnull())]
+    else:
+        filtered_df = df.loc[(df[on] == value)]
+    return make_unique(filtered_df, column=column, prefer_column=on)
+
+@click.option("--spreadsheet", "-s", type=str, required=True, help="Spreadsheet to filter from")
+@click.option("--on", type=str, required=True, help="Column to compare on")
+@click.option("--value", type=str, required=True, help="Value to select")
+@click.option("--column", "-c", type=str, required=True, help="Column to use as primary value")
+@click.option("--blank-defaults", is_flag=True, help="Include unmatched rows with no value in column")
+@click.option("--pseudonyms", "-p", type=str, default="", help="Alternative column names in json format")
+@gr1.command("filter", help="Compares the given columns, passes if all given columns exist in both files and values are the same")
+def filter_command(spreadsheet, on, value, column, blank_defaults, pseudonyms):
+    pseudonyms=read_pseodonyms(pseudonyms)
+    df = extract_columns_by_pseudonyms(read_file_to_df(spreadsheet), pseudonyms)
+    filtered_df = filter(df, on, value, column, blank_defaults)
+    fname = os.path.split(os.path.splitext(spreadsheet)[0])[-1]
+    filtered_df.to_excel(f'{fname}_Filtered_On_{on}_{value}_by_{column}.xlsx', index=False)
 
 def main():
     gr1()
