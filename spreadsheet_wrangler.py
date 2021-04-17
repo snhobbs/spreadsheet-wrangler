@@ -22,7 +22,7 @@ def read_pseodonyms(string: str) -> dict:
 def make_unique(df: pd.DataFrame, column: str, prefer_column=None):
     not_unique_values = [val for val in df[column] if list(df[column]).count(val) > 1]
     for value in not_unique_values:
-        while list(df[column]).count(ref) > 1:
+        while list(df[column]).count(value) > 1:
             drop_rows = []
             if prefer_column is None:
                 for i, row in df[df[column] == value].iterrows():
@@ -38,7 +38,7 @@ def make_unique(df: pd.DataFrame, column: str, prefer_column=None):
 
 '''Finds knowns pseudonyms for columns and includes names them correctly for passing as argument'''
 def extract_columns_by_pseudonyms(df: pd.DataFrame, column_names: dict) -> pd.DataFrame:
-    included = []
+    included : list = list()
     for name in df.columns:
         for column, names in column_names.items():
             if name.lower() in [pt.lower() for pt in names] or name.lower() == column.lower():
@@ -123,7 +123,7 @@ def cluster(df: pd.DataFrame, on: str, column: str) -> pd.DataFrame:
     assert(on in df.columns)
     assert(column in df.columns)
     grouped = df.groupby(on)
-    drop = []
+    drop : list = []
     clustered = []
     rows = []
     for _, group in grouped:
@@ -141,7 +141,7 @@ def cluster(df: pd.DataFrame, on: str, column: str) -> pd.DataFrame:
     return df
 
 def compare(left: pd.DataFrame, right: pd.DataFrame, columns: str, on: str) -> dict:
-    errors = {"line":[], "column": [], "description": []}
+    errors : dict = {"line":[], "column": [], "description": []}
     for pt in list(left[on]) + list(right[on]):
         matching_rows_left = left[left[on] == pt]
         matching_rows_right = right[right[on] == pt]
