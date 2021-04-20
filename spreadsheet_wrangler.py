@@ -119,13 +119,18 @@ def uncluster(df: pd.DataFrame, grouped_column: str) -> pd.DataFrame:
     return uncluster_ast(df, grouped_column)
 
 '''ref-des will not be a tuple of all the matching lines, the rest of the line is taken to be the first in the file and carried forward'''
-def cluster(df: pd.DataFrame, on: str, column: str) -> pd.DataFrame:
-    assert(on in df.columns)
-    assert(column in df.columns)
+def cluster(df: pd.DataFrame, on: list, column: str) -> pd.DataFrame:
+    for pt in on:
+        if pt not in df.columns:
+            raise KeyError(f"column {pt} or pseudonym not found")
+    if column not in df.columns:
+        raise KeyError(f"column {column} or pseudonym not found")
+
     grouped = df.groupby(on)
     drop : list = []
-    clustered = []
-    rows = []
+    clustered : list = []
+    rows : list = []
+
     for _, group in grouped:
         cluster_entries = []
         for i, row in group.iterrows():
@@ -168,7 +173,7 @@ def gr1():
     pass
 
 @click.option("--spreadsheet", "-s", type=str, required=True, help="Main spreadsheet")
-@click.option("--on", type=str, required=True, help="Column to compare value")
+@click.option("--on", type=str, multiple=True, required=True, help="Column to compare value")
 @click.option("--column", type=str, required=True, help="Column to cluster into array")
 @click.option("--pseudonyms", "-p", type=str, default="", help="Alternative column names in json format")
 @gr1.command("cluster", help='''Cluster spreadsheet by column value''')
