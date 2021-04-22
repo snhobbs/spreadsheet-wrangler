@@ -22,6 +22,7 @@ def read_pseodonyms(string: str) -> dict:
 def make_unique(df: pd.DataFrame, column: str, prefer_column=None):
     not_unique_values = [val for val in df[column] if list(df[column]).count(val) > 1]
     for value in not_unique_values:
+        print(value)
         while list(df[column]).count(value) > 1:
             drop_rows = []
             if prefer_column is None:
@@ -29,7 +30,9 @@ def make_unique(df: pd.DataFrame, column: str, prefer_column=None):
                     drop_rows.append(i)
                 drop_rows.pop() # keep last row
             else:
-                min_length = min([str(pt) for pt in df[df[column] == value][prefer_column]])
+                print(value)
+                matching = df[df[column] == value][prefer_column]
+                min_length = min([str(pt) for pt in matching])
                 for i, row in df[df[column] == value].iterrows():
                     if len(str(row[prefer_column])) == min_length:
                         drop_rows.append(i)
@@ -76,7 +79,6 @@ def read_csv_to_df(fname: str) -> pd.DataFrame:
     except Exception as e:
         raise
 
-#sep=None
 def read_file_to_df(fname: str) -> dict:
     name, ext = os.path.splitext(fname)
     ext = ext.lower()
@@ -85,7 +87,9 @@ def read_file_to_df(fname: str) -> dict:
 
     elif ext in [".xls", ".xlsx", ".xlsm", ".xlsb", ".odf", ".ods",".odt"]:
         df = pd.read_excel(fname, sheet_name=0, header=0, skiprows=0,
-                comment="#", skip_blank_lines=True)
+                comment="#")#, skip_blank_lines=True)
+    else:
+        raise UserWarning(f"Extension {ext} unsupported")
     return df
 
 def uncluster_ast(df: pd.DataFrame, grouped_column: str) -> pd.DataFrame:
