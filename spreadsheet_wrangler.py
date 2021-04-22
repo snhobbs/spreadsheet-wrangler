@@ -6,12 +6,21 @@ import click
 import pandas as pd  # type: ignore
 import csv
 import os
-import numpy as np
+import numpy as np # type: ignore
 import copy
 import ast
 import json
 import re
+#from pandas_ods_reader import read_ods
+import pyexcel_ods3
 
+supported_text_formats = (".csv", ".txt")
+supported_excel_formats = (
+    ".xls", ".xlsx", ".xlsm",
+    ".xlsb"
+)
+supported_ods_formats = (".ods", ".odt", ".odf")
+supported_file_formats = tuple(list(supported_text_formats) + list(supported_excel_formats) + list(supported_ods_formats))
 
 def read_pseodonyms(string: str) -> dict:
     if len(string.strip()) == 0:
@@ -76,17 +85,33 @@ def read_csv_to_df(fname: str) -> pd.DataFrame:
     except Exception as e:
         raise
 
-#sep=None
 def read_file_to_df(fname: str) -> dict:
     name, ext = os.path.splitext(fname)
     ext = ext.lower()
-    if ext == ".csv":
+    if ext in supported_text_formats:
         df = read_csv_to_df(fname)
 
-    elif ext in [".xls", ".xlsx", ".xlsm", ".xlsb", ".odf", ".ods",".odt"]:
+    elif ext in supported_excel_formats :
         df = pd.read_excel(fname, sheet_name=0, header=0, skiprows=0,
                 comment="#", skip_blank_lines=True)
-    return df
+
+    elif ext in supported_ods_formats :
+        data = pyexcel_ods3.get_data(fname)
+        ave_line_length = np.mean([len(line) for line in data])
+        data_lines = []
+        for line in data:
+            if len(line) >= ave_line_length: # assume this is the data
+                data_lines.append(line)
+        header = data_lines[0]
+        data_lines = data_lines[1:]
+        df_dict = dict([(column, []) for column in header])
+        for line in data_lines:
+            for column, pt in zip(df_dict.keys(), line):
+                df_dict[column].append(pt)
+
+        #read_ods(fname, sheet=0)
+
+    return pd.DataFrame(df_dict)
 
 def uncluster_ast(df: pd.DataFrame, grouped_column: str) -> pd.DataFrame:
     formated_df = df[df[grouped_column] != np.nan]
@@ -156,7 +181,7 @@ def compare(left: pd.DataFrame, right: pd.DataFrame, columns: str, on: str) -> d
                     errors["description"].append("{} ({}) != {} ({})".format(lc, type(lc), rc, type(rc)))
     return errors
 
-def filter_df(df: pd.DataFrame, on: str, value, column: str, blank_defaults: bool):
+def filter_df(df: pd.DataFrame, on: str, value, column: str, blank_defaults: bool) -> pd.DataFrame:
     if blank_defaults:
         filtered_df = df.loc[(df[on] == value) | (df[on].isnull())]
     else:
@@ -235,6 +260,24 @@ def filter_command(spreadsheet, on, value, column, blank_defaults, pseudonyms):
     filtered_df = filter_df(df, on, value, column, blank_defaults)
     fname = os.path.split(os.path.splitext(spreadsheet)[0])[-1]
     filtered_df.to_excel(f'{fname}_Filtered_On_{on}_{value}_by_{column}.xlsx', index=False)
+
+@click.option("--fin", "-i", type=str, required=True, help="Input sreadsheet")
+@click.option("--fout", "-o", type=str, help="Generatated spreadsheet")
+@click.option("--format", type=click.Choice(supported_file_formats), help="Generatated spreadsheet format")
+@click.option("--pseudonyms", "-p", type=str, default="", help="Alternative column names in json format")
+@gr1.command("translate", help="Compares the given columns, passes if all given columns exist in both files and values are the same")
+def translate_command(fin, fout, format, pseudonyms):
+    pseudonyms=read_pseodonyms(pseudonyms)
+    df = extract_columns_by_pseudonyms(read_file_to_df(fin), pseudonyms)
+
+    fname = os.path.split(os.path.splitext(fin)[0])[-1]
+    if fout is None:
+        if format is not None:
+            fout = fname + format
+        else:
+            fout = fin
+
+    df.to_excel(fout, index=False)
 
 def main():
     gr1()
