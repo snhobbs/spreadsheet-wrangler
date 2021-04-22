@@ -95,8 +95,8 @@ def read_file_to_df(fname: str) -> dict:
         df = read_csv_to_df(fname)
 
     elif ext in supported_excel_formats :
-        df = pd.read_excel(fname, sheet_name=0, header=0, skiprows=0,
-                comment="#")#, skip_blank_lines=True)
+        df = pd.read_excel(fname, sheet_name=0, header=0, skiprows=0)#,
+                #comment="#")#, skip_blank_lines=True)
 
     elif ext in supported_ods_formats :
         data = pyexcel_ods3.get_data(fname)
@@ -112,13 +112,13 @@ def read_file_to_df(fname: str) -> dict:
             for column, pt in zip(df_dict.keys(), line):
                 df_dict[column].append(pt)
 
-	df = pd.DataFrame(df_dict)
+        df = pd.DataFrame(df_dict)
         #read_ods(fname, sheet=0)
 
     else:
         raise UserWarning(f"Extension {ext} unsupported")
 
-    return pd.DataFrame(df_dict)
+    return pd.DataFrame(df)
 
 def uncluster_ast(df: pd.DataFrame, grouped_column: str) -> pd.DataFrame:
     formated_df = df[df[grouped_column] != np.nan]
@@ -197,7 +197,7 @@ def filter_df(df: pd.DataFrame, on: str, value, column: str, blank_defaults: boo
     if blank_defaults:
         filtered_df = df.loc[(df[on] == value) | (df[on].isnull())]
     else:
-        filtered_df = df.loc[(df[on] == value)]
+        filtered_df = df.loc[(str(df[on]).lower() == str(value).lower())]
     return make_unique(filtered_df, column=column, prefer_column=on)
 
 @click.group()
@@ -228,13 +228,14 @@ def uncluster_command(spreadsheet, column, pseudonyms):
 @click.option("-l", type=str, required=True, help="Left merge")
 @click.option("-r", type=str, required=True, help="Right merge")
 @click.option("--on", type=str, required=True, help="Column to merge on")
+@click.option("--method", default="left", type=click.Choice(["left", "right", "outer", "inner"]), help="Column to merge on")
 @click.option("--pseudonyms", "-p", type=str, default="", help="Alternative column names in json format")
 @gr1.command(help='''Merge two spreadsheets on the given column''')
-def merge(l, r, on, pseudonyms):
+def merge(l, r, on, method, pseudonyms):
     pseudonyms=read_pseodonyms(pseudonyms)
     left = extract_columns_by_pseudonyms(read_file_to_df(l), pseudonyms)
     right = extract_columns_by_pseudonyms(read_file_to_df(r), pseudonyms)
-    df = left.merge(right, on=on, how="left") # include all DNPs, unknown parts won't cause an error
+    df = left.merge(right, on=on, how=method) # include all DNPs, unknown parts won't cause an error
     fname_l = os.path.split(os.path.splitext(l)[0])[-1]
     fname_r = os.path.split(os.path.splitext(r)[0])[-1]
     df.to_excel(f'{fname_l}_Merged{fname_r}_On_{on}.xlsx', index=False)
