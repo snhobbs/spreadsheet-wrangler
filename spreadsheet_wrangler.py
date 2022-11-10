@@ -158,7 +158,7 @@ def cluster(df: pd.DataFrame, on: list, column: str) -> pd.DataFrame:
     if column not in df.columns:
         raise KeyError(f"column {column} or pseudonym not found")
 
-    grouped = df.groupby(on)
+    grouped = df.groupby(on[0])
     drop : list = []
     clustered : list = []
     rows : list = []
@@ -193,6 +193,7 @@ def compare(left: pd.DataFrame, right: pd.DataFrame, columns: str, on: str) -> d
                     errors["description"].append("{} ({}) != {} ({})".format(lc, type(lc), rc, type(rc)))
     return errors
 
+
 def filter_df(df: pd.DataFrame, on: str, value, column: str, blank_defaults: bool) -> pd.DataFrame:
     if blank_defaults:
         filtered_df = df.loc[(df[on] == value) | (df[on].isnull())]
@@ -204,12 +205,13 @@ def filter_df(df: pd.DataFrame, on: str, value, column: str, blank_defaults: boo
 def gr1():
     pass
 
+@click.option("--fout", "-o", type=str, default=None, help="Generatated spreadsheet")
 @click.option("--spreadsheet", "-s", type=str, required=True, help="Main spreadsheet")
 @click.option("--on", type=str, multiple=True, required=True, help="Column to compare value")
 @click.option("--column", type=str, required=True, help="Column to cluster into array")
 @click.option("--pseudonyms", "-p", type=str, default="", help="Alternative column names in json format")
 @gr1.command("cluster", help='''Cluster spreadsheet by column value''')
-def cluster_command(spreadsheet, on, column, pseudonyms):
+def cluster_command(fout, spreadsheet, on, column, pseudonyms):
     pseudonyms=read_pseodonyms(pseudonyms)
     df = extract_columns_by_pseudonyms(read_file_to_df(spreadsheet), pseudonyms)
     if fout is None:
@@ -217,7 +219,10 @@ def cluster_command(spreadsheet, on, column, pseudonyms):
         fname = f'{base}_Clustered_On_{column}.xlsx'
     else:
         fname = fout
-    cluster(df, on, column).to_excel(fname, index=False)
+    print(df,on, column)
+    clustered_df = cluster(df, on, column)
+    clustered_df[column] = [",".join(pt) for pt in clustered_df[column]]
+    clustered_df.to_excel(fname, index=False)
 
 @click.option("--fout", "-o", type=str, default=None, help="Generatated spreadsheet")
 @click.option("--spreadsheet", "-s", type=str, required=True, help="Main spreadsheet")
