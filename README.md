@@ -39,7 +39,6 @@ To sort a BOM by the type of part and with a list of the reference designators r
 ```
 spreadsheet_wrangler.py cluster --column="ref-des" --on="pn" -s bom_clustered_on_ref-des.xlsx
 ```
-NOTE: Currently the first matching row with in the column passed with the "--on" argument is used for all the matching parts. This is not necessarily correct.
 
 ### Compare a BOM sorted by the type of parts with a design BOM
 To compare a BOM sorted by the part type (as shown above) with a BOM sorted by reference designator the BOM needs to be unpacked first and then compared.

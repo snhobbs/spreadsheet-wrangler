@@ -158,7 +158,7 @@ def cluster(df: pd.DataFrame, on: list, column: str) -> pd.DataFrame:
     if column not in df.columns:
         raise KeyError(f"column {column} or pseudonym not found")
 
-    grouped = df.groupby(on[0])
+    grouped = df.groupby(by=list(on))  #  IMPORTANT: This has to be a list as a tuple is interpreted as a single key.
     drop : list = []
     clustered : list = []
     rows : list = []
@@ -219,7 +219,6 @@ def cluster_command(fout, spreadsheet, on, column, pseudonyms):
         fname = f'{base}_Clustered_On_{column}.xlsx'
     else:
         fname = fout
-    print(df,on, column)
     clustered_df = cluster(df, on, column)
     clustered_df[column] = [",".join(pt) for pt in clustered_df[column]]
     clustered_df.to_excel(fname, index=False)
