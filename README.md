@@ -37,7 +37,7 @@ The ordering BOM sorts by reference designator and combines the BOM into unique 
 
 To sort a BOM by the type of part and with a list of the reference designators run:
 ```
-spreadsheet_wrangler.py cluster --column="ref-des" --on="pn" -s bom.xlsx
+spreadsheet_wrangler.py cluster --column="ref-des" --on="pn" -s bom_clustered_on_ref-des.xlsx
 ```
 NOTE: Currently the first matching row with in the column passed with the "--on" argument is used for all the matching parts. This is not necessarily correct.
 
@@ -45,9 +45,18 @@ NOTE: Currently the first matching row with in the column passed with the "--on"
 To compare a BOM sorted by the part type (as shown above) with a BOM sorted by reference designator the BOM needs to be unpacked first and then compared.
 To unpack run:
 ```
-spreadsheet_wrangler.py uncluster --column="ref-des" -s bom_Clustered_On_ref-des.xlsx
+spreadsheet_wrangler.py uncluster --column="ref-des" -s bom_unclustered.xlsx
 ```
 This will seperate the lines like the original bom.xlsx. This BOM can now be compared using the compare function described above.
 
 NOTE: Note the data in each grouped row is duplicated for each clustered element. This is not necessarily correct if data was dissimilar and lost during the clustering step.
 
+### Clustering a partially filled in BOM
+After exporting a design BOM with each component in it's own line you end up with what I call a design BOM except without the useful fields included. ![unclustered BOM](unclustered_bom.png)
+For this I want to cluster based on "Comment" and "Footprint", that is I want all 0603 10K resistors together and not include any other 0603 or 10K parts in the cluster. The command would then be:
+
+```
+spreadsheet_wrangler.py cluster --spreadsheet BOM-1x2_tester.csv --column "Designator" --on "Comment" --on "Footprint" -o BOM_clustered.xlsx
+```
+This call turns the above BOM into:
+![clustered on comment and footprint](clustered_on_comment_and_footprint.png)
