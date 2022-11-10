@@ -51,11 +51,15 @@ This will seperate the lines like the original bom.xlsx. This BOM can now be com
 NOTE: Note the data in each grouped row is duplicated for each clustered element. This is not necessarily correct if data was dissimilar and lost during the clustering step.
 
 ### Clustering a partially filled in BOM
-After exporting a design BOM with each component in it's own line you end up with what I call a design BOM except without the useful fields included. ![unclustered BOM](unclustered_bom.png)
+After exporting a design BOM with each component in it's own line you end up with what I call a design BOM except without the useful fields included. 
+
+![unclustered BOM](unclustered_bom.png)
+
 For this I want to cluster based on "Comment" and "Footprint", that is I want all 0603 10K resistors together and not include any other 0603 or 10K parts in the cluster. The command would then be:
 
 ```
 spreadsheet_wrangler.py cluster --spreadsheet BOM-1x2_tester.csv --column "Designator" --on "Comment" --on "Footprint" -o BOM_clustered.xlsx
 ```
 This call turns the above BOM into:
+
 ![clustered on comment and footprint](clustered_on_comment_and_footprint.png)
