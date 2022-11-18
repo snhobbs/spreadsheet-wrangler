@@ -10,7 +10,7 @@ with open("requirements.txt", "r") as f:
         requirements.append(line.strip())
 
 setup(name='spreadsheet-wrangler',
-      version='0.1.2',
+      version='0.1.3',
       description='Spreadsheet editing tools',
       long_description=LONG_DESCRIPTION,
       long_description_content_type="text/markdown",

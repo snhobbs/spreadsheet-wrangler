@@ -1,6 +1,19 @@
 # spreadsheet-wrangler
 Command line tool for interacting with spreadsheet data
 
+## Installation
+### pypi
+```
+pip install spreadsheet-wrangler
+```
+
+### Source
+```
+git clone https://github.com/snhobbs/spreadsheet-wrangler.git
+cd spreadsheet-wrangler
+pip install .
+```
+
 ## Functions
 - merge: Left merge two spreadsheets and save as xlsx
 - compare: Compare two spreadsheets on a column name, prints out the discrepencies
