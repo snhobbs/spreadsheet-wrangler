@@ -14,14 +14,6 @@ import re
 #from pandas_ods_reader import read_ods
 import pyexcel_ods3
 
-supported_text_formats = (".csv", ".txt")
-supported_excel_formats = (
-    ".xls", ".xlsx", ".xlsm",
-    ".xlsb"
-)
-supported_ods_formats = (".ods", ".odt", ".odf")
-supported_file_formats = tuple(list(supported_text_formats) + list(supported_excel_formats) + list(supported_ods_formats))
-
 def read_pseodonyms(string: str) -> dict:
     if len(string.strip()) == 0:
         return {}
@@ -66,13 +58,8 @@ def extract_columns_by_pseudonyms(df: pd.DataFrame, column_names: dict) -> pd.Da
     return df
 
 
-def read_csv_to_df(fname: str) -> pd.DataFrame:
+def read_csv_to_df(fname: str, **kwargs) -> pd.DataFrame:
     # Use automatic dialect detection by setting sep to None and engine to python
-    kwargs = dict(
-        header=0, skipinitialspace=True,
-        index_col=None, comment="#", quotechar='"',
-        quoting=csv.QUOTE_MINIMAL, engine="python", skip_blank_lines=True
-    )
     #try sniffing
     try:
         # Use automatic dialect detection by setting sep to None and engine to python
@@ -98,36 +85,75 @@ def read_csv_to_df(fname: str) -> pd.DataFrame:
         raise
 
 
-def read_file_to_df(fname: str) -> dict:
+def read_ods_format_to_df(fname, **kwargs):
+    data = pyexcel_ods3.get_data(fname, **header)
+    ave_line_length = np.mean([len(line) for line in data])
+    data_lines = []
+    for line in data:
+        if len(line) >= ave_line_length: # assume this is the data
+            data_lines.append(line)
+    header = data_lines[0]
+    data_lines = data_lines[1:]
+    df_dict = dict([(column, []) for column in header])
+    for line in data_lines:
+        for column, pt in zip(df_dict.keys(), line):
+            df_dict[column].append(pt)
+    df = pd.DataFrame(df_dict)
+
+
+def get_supported_file_types_df():
+    '''
+    Installed readers
+    '''
+    return [
+        {'title': 'text',
+         'kwargs': dict(
+                header=0, skipinitialspace=True,
+                index_col=None, comment="#", quotechar='"',
+                quoting=csv.QUOTE_MINIMAL, engine="python",
+                skip_blank_lines=True
+            ),
+         'extensions': ('csv', 'txt'),
+         'readf': read_csv_to_df},
+        {'title': 'excel',
+         'kwargs': dict(sheet_name=0, header=0, skiprows=0),
+         'extensions': ("xls", "xlsx", "xlsm","xlsb"),
+         'readf': pd.read_excel},
+        {'title': 'ods',
+         'kwargs': dict(sheet_name=0, header=0, skiprows=0),
+         'extensions': ("ods", "odt", "odf"),
+         'readf': read_ods_format_to_df}
+    ]
+
+
+def get_supported_file_formats():
+    '''
+    returns collection of all the supported extensions
+    '''
+    extensions = []
+    for entry in get_supported_file_types_df():
+        extensions.extend(entry["extensions"])
+    return tuple(extensions)
+
+
+def read_file_to_df(fname: str, **kwargs) -> pd.DataFrame:
+    '''
+    Cycle through extensions, use the reader object to call
+    '''
     name, ext = os.path.splitext(fname)
+    ext = ext.strip('.')
     ext = ext.lower()
-    if ext in supported_text_formats:
-        df = read_csv_to_df(fname)
-
-    elif ext in supported_excel_formats :
-        df = pd.read_excel(fname, sheet_name=0, header=0, skiprows=0)#,
-                #comment="#")#, skip_blank_lines=True)
-
-    elif ext in supported_ods_formats :
-        data = pyexcel_ods3.get_data(fname)
-        ave_line_length = np.mean([len(line) for line in data])
-        data_lines = []
-        for line in data:
-            if len(line) >= ave_line_length: # assume this is the data
-                data_lines.append(line)
-        header = data_lines[0]
-        data_lines = data_lines[1:]
-        df_dict = dict([(column, []) for column in header])
-        for line in data_lines:
-            for column, pt in zip(df_dict.keys(), line):
-                df_dict[column].append(pt)
-
-        df = pd.DataFrame(df_dict)
-        #read_ods(fname, sheet=0)
-
-    else:
+    df = None
+    found = False
+    for reader in get_supported_file_types_df():
+        if ext in reader["extensions"]:
+            found = True
+            if kwargs is None:
+                kwargs = reader["kwargs"]
+            df = reader["readf"](fname, **kwargs)
+            break
+    if not found:
         raise UserWarning(f"Extension {ext} unsupported")
-
     return pd.DataFrame(df)
 
 
@@ -297,7 +323,7 @@ def merge(fout, l, r, on, method, pseudonyms):
 @click.option("-l", type=str, required=True, help="First spreadsheet")
 @click.option("-r", type=str, required=True, help="Second spreadsheet")
 @click.option("--on", type=str, default=None, help="Column to compare on")
-@click.option("--columns", "-c", type=str, default=None, help="Columns to check, leave blank to check all with same name")
+@click.option("--columns", "-c", multiple=True, type=str, default=None, help="Columns to check, leave blank to check all with same name")
 @click.option("--pseudonyms", "-p", type=str, default="", help="Alternative column names in json format")
 @gr1.command("compare", help="Compares the given columns, passes if all given columns exist in both files and values are the same")
 def compare_command(l, r, on, columns, pseudonyms):
@@ -306,8 +332,6 @@ def compare_command(l, r, on, columns, pseudonyms):
     right = extract_columns_by_pseudonyms(read_file_to_df(r), pseudonyms)
     if columns is None:
         columns = set(left.columns).intersection(set(right.columns))
-    else:
-        columns = [pt.strip() for pt in columns.split(",").strip(",")]
 
     errors = compare(left, right, columns, on)
     print("Comparing columns:", columns)
@@ -336,7 +360,7 @@ def filter_command(fin, fout, value, column, blank_defaults, pseudonyms):
 
 @click.option("--fin", "-i", type=str, required=True, help="Input spreadsheet")
 @click.option("--fout", "-o", type=str, default=None, help="Generatated spreadsheet")
-@click.option("--format", type=click.Choice(supported_file_formats), help="Generatated spreadsheet format")
+@click.option("--format", type=click.Choice(get_supported_file_formats()), help="Generatated spreadsheet format")
 @click.option("--pseudonyms", "-p", type=str, default="", help="Alternative column names in json format")
 @gr1.command("translate", help="Compares the given columns, passes if all given columns exist in both files and values are the same")
 def translate_command(fin, fout, format, pseudonyms):
@@ -346,7 +370,7 @@ def translate_command(fin, fout, format, pseudonyms):
     if fout is None:
         base = os.path.split(os.path.splitext(fin)[0])[-1]
         if format is not None:
-            fout = base + format
+            fout = f"{base}.{format}"
         else:
             fout = fin
 
