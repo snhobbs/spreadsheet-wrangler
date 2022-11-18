@@ -284,14 +284,14 @@ def compare_command(l, r, on, columns, pseudonyms):
 @click.option("--column", "-c", type=str, required=True, help="Column to use as primary value")
 @click.option("--blank-defaults", is_flag=True, help="Include unmatched rows with no value in column")
 @click.option("--pseudonyms", "-p", type=str, default="", help="Alternative column names in json format")
-@gr1.command("filter", help="Compares the given columns, passes if all given columns exist in both files and values are the same")
+@gr1.command("filter", help="Compares the given columns, selects the row if all given columns exist in both files and values are the same")
 def filter_command(spreadsheet, on, value, column, blank_defaults, pseudonyms):
     pseudonyms=read_pseodonyms(pseudonyms)
     df = extract_columns_by_pseudonyms(read_file_to_df(spreadsheet), pseudonyms)
     filtered_df = filter_df(df, on, value, column, blank_defaults)
     if fout is None:
         base = os.path.split(os.path.splitext(spreadsheet)[0])[-1]
-        fname = f'{fname}_Filtered_On_{on}_{value}_by_{column}.xlsx'
+        fname = f'{fname}_Filtered_On_{on}_{column}_by_{value}.xlsx'
     else:
         fname = fout
     filtered_df.to_excel(fname, index=False)
