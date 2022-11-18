@@ -27,8 +27,16 @@ def read_pseodonyms(string: str) -> dict:
         return {}
     return json.loads(string)
 
-'''Remove the values that are duplicates, prefer the rows with a value. column is the unique value column, prefer_column is the one to look at the longest argument of'''
+
 def make_unique(df: pd.DataFrame, column: str, prefer_column=None):
+    '''Remove the values that are duplicates, prefer the rows with a value.
+    column is the unique value column, prefer_column is the one to look at the longest argument of
+
+    column: column to remove duplicates
+    perfer_column: If there are duplicate rows then the row with the
+    longest value of this value is kept
+    '''
+
     not_unique_values = [val for val in df[column] if list(df[column]).count(val) > 1]
     for value in not_unique_values:
         print(value)
@@ -48,14 +56,15 @@ def make_unique(df: pd.DataFrame, column: str, prefer_column=None):
             df.drop(df.index[drop_rows], inplace=True)
     return df
 
-'''Finds knowns pseudonyms for columns and includes names them correctly for passing as argument'''
+
 def extract_columns_by_pseudonyms(df: pd.DataFrame, column_names: dict) -> pd.DataFrame:
-    included : list = list()
+    '''Finds knowns pseudonyms for columns and includes names them correctly for passing as argument'''
     for name in df.columns:
         for column, names in column_names.items():
             if name.lower() in [pt.lower() for pt in names] or name.lower() == column.lower():
-                df.rename(columns={name:column}, inplace=True)
+                df.rename(columns={name: column}, inplace=True)
     return df
+
 
 def read_csv_to_df(fname: str) -> pd.DataFrame:
     # Use automatic dialect detection by setting sep to None and engine to python
@@ -87,6 +96,7 @@ def read_csv_to_df(fname: str) -> pd.DataFrame:
         return df
     except Exception as e:
         raise
+
 
 def read_file_to_df(fname: str) -> dict:
     name, ext = os.path.splitext(fname)
@@ -120,6 +130,7 @@ def read_file_to_df(fname: str) -> dict:
 
     return pd.DataFrame(df)
 
+
 def uncluster_ast(df: pd.DataFrame, grouped_column: str) -> pd.DataFrame:
     formated_df = df[df[grouped_column] != np.nan]
     expanded_rows = []
@@ -150,6 +161,7 @@ def uncluster_regex(df: pd.DataFrame, grouped_column: str, expression: str = "[A
 def uncluster(df: pd.DataFrame, grouped_column: str) -> pd.DataFrame:
     return uncluster_regex(df, grouped_column)
 
+
 def cluster(df: pd.DataFrame, on: list, column: str) -> pd.DataFrame:
     '''ref-des will not be a tuple of all the matching lines, the rest of the line is taken to be the first in the file and carried forward'''
     for pt in on:
@@ -177,8 +189,9 @@ def cluster(df: pd.DataFrame, on: list, column: str) -> pd.DataFrame:
     df.insert(int(index), column=column, value=clustered)
     return df
 
+
 def compare(left: pd.DataFrame, right: pd.DataFrame, columns: str, on: str) -> dict:
-    errors : dict = {"line":[], "column": [], "description": []}
+    errors: dict = {"line": [], "column": [], "description": []}
     for pt in list(left[on]) + list(right[on]):
         matching_rows_left = left[left[on] == pt]
         matching_rows_right = right[right[on] == pt]
@@ -194,16 +207,36 @@ def compare(left: pd.DataFrame, right: pd.DataFrame, columns: str, on: str) -> d
     return errors
 
 
-def filter_df(df: pd.DataFrame, on: str, value, column: str, blank_defaults: bool) -> pd.DataFrame:
+def select_on_value(df: pd.DataFrame, value, column: str, blank_defaults: bool):
+    '''
+    Selects all rows that match the value in the given column
+    '''
+    match = [str(pt).lower()==str(value).lower() for pt in df[column]]
     if blank_defaults:
-        filtered_df = df.loc[(df[on] == value) | (df[on].isnull())]
+        filtered_df = df.loc[(match) | (df[column].isnull())]
     else:
-        filtered_df = df.loc[(str(df[on]).lower() == str(value).lower())]
+        filtered_df = df.loc[(match)]
+    return filtered_df
+
+
+def get_unique(df: pd.DataFrame, column: str, blank_defaults: bool) -> pd.DataFrame:
+    '''
+    Selects only unique lines matching the column, value
+    '''
     return make_unique(filtered_df, column=column, prefer_column=on)
+
+
+def filter_df(df: pd.DataFrame, on: str, value, column: str, blank_defaults: bool) -> pd.DataFrame:
+    '''
+    Returns the rows that both match
+    '''
+    pass
+
 
 @click.group()
 def gr1():
     pass
+
 
 @click.option("--fout", "-o", type=str, default=None, help="Generatated spreadsheet")
 @click.option("--spreadsheet", "-s", type=str, required=True, help="Main spreadsheet")
@@ -223,6 +256,7 @@ def cluster_command(fout, spreadsheet, on, column, pseudonyms):
     clustered_df[column] = [",".join(pt) for pt in clustered_df[column]]
     clustered_df.to_excel(fname, index=False)
 
+
 @click.option("--fout", "-o", type=str, default=None, help="Generatated spreadsheet")
 @click.option("--spreadsheet", "-s", type=str, required=True, help="Main spreadsheet")
 @click.option("--column", type=str, required=True, help="Clustered column")
@@ -237,6 +271,7 @@ def uncluster_command(fout, spreadsheet, column, pseudonyms):
     else:
         fname = fout
     uncluster(df, column).to_excel(fname, index=False)
+
 
 @click.option("--fout", "-o", type=str, default=None, help="Generatated spreadsheet")
 @click.option("-l", type=str, required=True, help="Left merge")
@@ -258,6 +293,7 @@ def merge(fout, l, r, on, method, pseudonyms):
         fname = fout
     df.to_excel(fname, index=False)
 
+
 @click.option("-l", type=str, required=True, help="First spreadsheet")
 @click.option("-r", type=str, required=True, help="Second spreadsheet")
 @click.option("--on", type=str, default=None, help="Column to compare on")
@@ -278,20 +314,21 @@ def compare_command(l, r, on, columns, pseudonyms):
     for _, row in pd.DataFrame(errors).iterrows():
         print("[{}:{}] Comparison Failure: {}".format(row["column"], row["line"], row["description"]))
 
-@click.option("--spreadsheet", "-s", type=str, required=True, help="Spreadsheet to filter from")
-@click.option("--on", type=str, required=True, help="Column to compare on")
+
+@click.option("--fin", "-i", type=str, required=True, help="Input spreadsheet")
+@click.option("--fout", "-o", type=str, default=None, help="Generatated spreadsheet")
 @click.option("--value", type=str, required=True, help="Value to select")
-@click.option("--column", "-c", type=str, required=True, help="Column to use as primary value")
+@click.option("--column", "-c", type=str, required=True, help="Column to filter on")
 @click.option("--blank-defaults", is_flag=True, help="Include unmatched rows with no value in column")
 @click.option("--pseudonyms", "-p", type=str, default="", help="Alternative column names in json format")
 @gr1.command("filter", help="Compares the given columns, selects the row if all given columns exist in both files and values are the same")
-def filter_command(spreadsheet, on, value, column, blank_defaults, pseudonyms):
-    pseudonyms=read_pseodonyms(pseudonyms)
-    df = extract_columns_by_pseudonyms(read_file_to_df(spreadsheet), pseudonyms)
-    filtered_df = filter_df(df, on, value, column, blank_defaults)
+def filter_command(fin, fout, value, column, blank_defaults, pseudonyms):
+    pseudonyms = read_pseodonyms(pseudonyms)
+    df = extract_columns_by_pseudonyms(read_file_to_df(fin), pseudonyms)
+    filtered_df = select_on_value(df, column=column, value=value, blank_defaults=blank_defaults)
     if fout is None:
-        base = os.path.split(os.path.splitext(spreadsheet)[0])[-1]
-        fname = f'{fname}_Filtered_On_{on}_{column}_by_{value}.xlsx'
+        base = os.path.split(os.path.splitext(fin)[0])[-1]
+        fname = f'{base}_Filtered_On_{column}_by_{value}.xlsx'
     else:
         fname = fout
     filtered_df.to_excel(fname, index=False)
@@ -303,7 +340,7 @@ def filter_command(spreadsheet, on, value, column, blank_defaults, pseudonyms):
 @click.option("--pseudonyms", "-p", type=str, default="", help="Alternative column names in json format")
 @gr1.command("translate", help="Compares the given columns, passes if all given columns exist in both files and values are the same")
 def translate_command(fin, fout, format, pseudonyms):
-    pseudonyms=read_pseodonyms(pseudonyms)
+    pseudonyms = read_pseodonyms(pseudonyms)
     df = extract_columns_by_pseudonyms(read_file_to_df(fin), pseudonyms)
 
     if fout is None:
@@ -315,6 +352,7 @@ def translate_command(fin, fout, format, pseudonyms):
 
     df.to_excel(fout, index=False)
 
+
 @click.option("--fin", "-i", type=str, required=True, help="Input spreadsheet")
 @click.option("--fout", "-o", type=str, default=None, help="Generatated spreadsheet")
 @click.option("--column", "-c", type=str, required=True, help="Column to use as primary value")
@@ -323,7 +361,7 @@ def translate_command(fin, fout, format, pseudonyms):
 @click.option("--pseudonyms", "-p", type=str, default="", help="Alternative column names in json format")
 @gr1.command("delimiter", help="")
 def delimiter_command(fin, fout, column, delimiter, new_delimiter, pseudonyms):
-    pseudonyms=read_pseodonyms(pseudonyms)
+    pseudonyms = read_pseodonyms(pseudonyms)
     df = extract_columns_by_pseudonyms(read_file_to_df(fin), pseudonyms)
     col = []
     for _, line in df.iterrows():
@@ -337,6 +375,7 @@ def delimiter_command(fin, fout, column, delimiter, new_delimiter, pseudonyms):
         fname = fout
     df.to_excel(fname, index=False)
 
+
 @click.option("--fin", "-i", type=str, required=True, help="Input spreadsheet")
 @click.option("--fout", "-o", type=str, default=None, help="Generatated spreadsheet")
 @click.option("--column", "-c", type=str, required=True, help="Column to use as primary value")
@@ -346,7 +385,7 @@ def delimiter_command(fin, fout, column, delimiter, new_delimiter, pseudonyms):
 @gr1.command("sort-column", help="")
 def sort_lines_in_column(fin, fout, column, delimiter, pseudonyms, regex):
     '''Break a line by delimiter, sort by number if found otherwise by string'''
-    pseudonyms=read_pseodonyms(pseudonyms)
+    pseudonyms = read_pseodonyms(pseudonyms)
     df = extract_columns_by_pseudonyms(read_file_to_df(fin), pseudonyms)
     col = []
     regex_compiled = re.compile(regex)
@@ -355,22 +394,24 @@ def sort_lines_in_column(fin, fout, column, delimiter, pseudonyms, regex):
         try:
             try:
                 sorted_list = sorted(entries, key=lambda x: int(regex_compiled.search(x).group()))
-            except ValueError as e:
+            except ValueError:
                 sorted_list = sorted(entries, key=lambda x: regex_compiled.search(x).group())
-        except TypeError as e:
+        except TypeError:
             sorted_list = sorted(entries)
         entry = delimiter.join(sorted_list)
         col.append(entry)
     df[column] = col
     if fout is None:
         base = os.path.split(os.path.splitext(fin)[0])[-1]
-        fname = f'{fname}_Sorted_{column}.xlsx'
+        fname = f'{base}_Sorted_{column}.xlsx'
     else:
         fname = fout
     df.to_excel(fname, index=False)
 
+
 def main():
     gr1()
+
 
 if __name__ == "__main__":
     main()
