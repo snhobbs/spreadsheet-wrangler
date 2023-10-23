@@ -16,7 +16,7 @@ pip install .
 
 ## Functions
 - merge: Left merge two spreadsheets and save as xlsx
-- compare: Compare two spreadsheets on a column name, prints out the discrepencies
+- compare: Compare two spreadsheets on a column name, prints out the discrepancies
 - cluster: Combine the same values in a specified column as an array with the same name as the clustered column. The remainder of the first rows data is kept.
 - uncluster: Unpack clustered columns into one entry for each. The row is duplicated for each entry.
 - filter
@@ -32,7 +32,7 @@ additionally available data (data_store.xlsx) use the spreadsheet_wrangler tool:
 spreadsheet_wrangler.py merge --on="pn" -l bom.xlsx -r data_store.xlsx -p '{"pn":["Internal Part Number"]}'
 ```
 Any unique identifier will work, examples are: manufacturers part number, internal part number, index to a database, etc.
-Equivilent names for columns are passed to the tool in a JSON format. A file titled bom_Merged_data_store_On_pn.xlsx will be generated with this command.
+Equivalent names for columns are passed to the tool in a JSON format. A file titled bom_Merged_data_store_On_pn.xlsx will be generated with this command.
 
 ### Compare the data in two BOMS
 To compare the available data of two BOMs to compare function of spreadsheet_wrangler should be used. If a BOM was exported
@@ -41,7 +41,7 @@ and needs to be checked against another with questionable history run:
 spreadsheet_wrangler.py compare --on="ref-des" -l bom.xlsx -r bom_Merged_data_store_On_pn.xlsx
 ```
 This will compare the original BOM with the merged one from the first example. Comparisons are done column by column with rows matched by the value in the column passed with the argument "--on". This should be a unique for each instance of a part (i.e a ref des). 
-The shared columns will be checked as well as any passed in with the --columns argument. Discrepencies are printed to screen.
+The shared columns will be checked as well as any passed in with the --columns argument. Discrepancies are printed to screen.
 
 ### Generate a BOM sorted by the type of parts
 BOMs used for ordering, shipping, budgeting, or shipping to a CM are typically ordered by the type of part.
@@ -59,7 +59,7 @@ To unpack run:
 ```
 spreadsheet_wrangler.py uncluster --column="ref-des" -s bom_unclustered.xlsx
 ```
-This will seperate the lines like the original bom.xlsx. This BOM can now be compared using the compare function described above.
+This will separate the lines like the original bom.xlsx. This BOM can now be compared using the compare function described above.
 
 NOTE: Note the data in each grouped row is duplicated for each clustered element. This is not necessarily correct if data was dissimilar and lost during the clustering step.
 
