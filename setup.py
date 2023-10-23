@@ -4,10 +4,18 @@ from setuptools import setup, find_packages
 with open("README.md", "r") as fh:
     LONG_DESCRIPTION = fh.read()
 
-requirements = []
-with open("requirements.txt", "r") as f:
-    for line in f:
-        requirements.append(line.strip())
+try:
+    requirements = []
+    with open("requirements.txt", "r") as f:
+        for line in f:
+            requirements.append(line.strip())
+except FileNotFoundError:
+    requirements = [
+        "click",
+        "pandas",
+        "pyexcel_ods3",
+        "openpyxl"
+    ]
 
 setup(name='spreadsheet_wrangler',
       version='0.1.4',
