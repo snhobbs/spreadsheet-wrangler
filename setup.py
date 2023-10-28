@@ -1,46 +1,56 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
+
+"""The setup script."""
+
 from setuptools import setup, find_packages
 
 with open("README.md", "r") as fh:
     LONG_DESCRIPTION = fh.read()
 
-try:
-    requirements = []
-    with open("requirements.txt", "r") as f:
-        for line in f:
-            requirements.append(line.strip())
-except FileNotFoundError:
-    requirements = [
-        "click",
-        "pandas",
-        "pyexcel_ods3",
-        "openpyxl"
+with open('HISTORY.rst') as history_file:
+    history = history_file.read()
+
+requirements = [
+    'Click>=7.0',
+    'pandas',
+    'pyexcel_ods3',
+    'openpyxl'
     ]
 
-setup(name='spreadsheet_wrangler',
-      version='0.1.4',
-      description='Spreadsheet editing tools',
-      long_description=LONG_DESCRIPTION,
-      long_description_content_type="text/markdown",
-      url='https://github.com/snhobbs/spreadsheet-wrangler',
-      author='Simon Hobbs',
-      author_email='simon.hobbs@electrooptical.net',
-      license='MIT',
-      packages=find_packages(),
-      classifiers=[
-          "Programming Language :: Python :: 3",
-          "License :: OSI Approved :: MIT License",
-          "Operating System :: OS Independent",
-      ],
-      python_requires='>=3.6',
-      install_requires=requirements,
-      test_suite='nose.collector',
-      tests_require=['nose'],
-      scripts=["spreadsheet_wrangler.py"],
-      entry_points={
-        "console_scripts": [
-            "spreadsheet_wrangler=spreadsheet_wrangler:main",
+
+test_requirements = [ ]
+
+setup(
+    author="Simon Hobbs",
+    author_email='simon.hobbs@electrooptical.net',
+    python_requires='>=3.6',
+    classifiers=[
+        'Development Status :: 2 - Pre-Alpha',
+        'Intended Audience :: Developers',
+        'License :: OSI Approved :: MIT License',
+        'Natural Language :: English',
+        'Programming Language :: Python :: 3',
+        'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.8',
+    ],
+    description='Spreadsheet editing tools',
+    entry_points={
+        'console_scripts': [
+            'spreadsheet_wrangler=spreadsheet_wrangler.cli:main',
         ],
-      },
-      include_package_data=False,
-      zip_safe=True)
+    },
+    install_requires=requirements,
+    license="MIT license",
+    long_description=LONG_DESCRIPTION  + '\n\n' + history,
+    long_description_content_type="text/markdown",
+    include_package_data=True,
+    keywords='spreadsheet_wrangler',
+    name='spreadsheet_wrangler',
+    packages=find_packages(include=['spreadsheet_wrangler', 'spreadsheet_wrangler.*']),
+    test_suite='tests',
+    tests_require=test_requirements,
+    url='https://github.com/snhobbs/spreadsheet-wrangler',
+    version='0.1.5',
+    zip_safe=False,
+)
