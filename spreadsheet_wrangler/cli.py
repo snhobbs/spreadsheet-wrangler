@@ -193,6 +193,29 @@ def sort_lines_in_column(fin, fout, column, delimiter, pseudonyms, regex, format
     write(df, fout, index=False)
 
 
+@click.option("--fin", "-i", type=str, required=True, help="Input spreadsheet")
+@click.option("--fout", "-o", type=str, default=None, help="Generatated spreadsheet")
+@click.option("--page", type=str, required=True, help="Page name to export")
+@click.option("--format", type=click.Choice(get_supported_file_formats()), default="xlsx", help="Generatated spreadsheet format")
+@gr1.command("export-sheet", help="Export a single sheet of a spreadsheet")
+def export_sheet(fin, fout, page, format):
+    '''Export a single sheet of a spreadsheet'''
+    path, ext = os.path.splitext(fin)
+    _, base = os.path.split(path)
+
+    if fout is None:
+        fname = f'{base}{page}.{format}'
+    else:
+        fname = fout
+
+    if ext.lower() == "csv":  # no pages for a csv
+        df = read_file_to_df(fin)
+    else:
+        df = pandas.read_excel(fin, sheet_name=page)
+
+    write(df, fout, index=False)
+
+
 def main():
     gr1()
 
