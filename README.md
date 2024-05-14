@@ -40,7 +40,7 @@ and needs to be checked against another with questionable history run:
 ```
 spreadsheet_wrangler.py compare --on="ref-des" -l bom.xlsx -r bom_Merged_data_store_On_pn.xlsx
 ```
-This will compare the original BOM with the merged one from the first example. Comparisons are done column by column with rows matched by the value in the column passed with the argument "--on". This should be a unique for each instance of a part (i.e a ref des). 
+This will compare the original BOM with the merged one from the first example. Comparisons are done column by column with rows matched by the value in the column passed with the argument "--on". This should be a unique for each instance of a part (i.e a ref des).
 The shared columns will be checked as well as any passed in with the --columns argument. Discrepancies are printed to screen.
 
 ### Generate a BOM sorted by the type of parts
@@ -64,7 +64,7 @@ This will separate the lines like the original bom.xlsx. This BOM can now be com
 NOTE: Note the data in each grouped row is duplicated for each clustered element. This is not necessarily correct if data was dissimilar and lost during the clustering step.
 
 ### Clustering a partially filled in BOM
-After exporting a design BOM with each component in it's own line you end up with what I call a design BOM except without the useful fields included. 
+After exporting a design BOM with each component in it's own line you end up with what I call a design BOM except without the useful fields included.
 
 ![unclustered BOM](unclustered_bom.png)
 
