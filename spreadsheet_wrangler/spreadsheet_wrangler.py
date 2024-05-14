@@ -230,7 +230,6 @@ def cluster(df: pd.DataFrame, on: list, column: str) -> pd.DataFrame:
     grouped = df.groupby(
         by=list(on)
     )  #  IMPORTANT: This has to be a list as a tuple is interpreted as a single key.
-    drop: list = []
     clustered: list = []
     rows: list = []
 

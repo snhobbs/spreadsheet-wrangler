@@ -1,6 +1,5 @@
 """Console script for spreadsheet_wrangler."""
 
-import os
 import re
 import click
 import pandas as pd
@@ -85,8 +84,8 @@ def uncluster_command(fout, spreadsheet, column, pseudonyms, format):
 
 
 @click.option("--fout", "-o", type=str, default=None, help="Generatated spreadsheet")
-@click.option("-l", type=str, required=True, help="Left merge")
-@click.option("-r", type=str, required=True, help="Right merge")
+@click.option("--left", "-l", type=str, required=True, help="Left merge")
+@click.option("--right", "-r", type=str, required=True, help="Right merge")
 @click.option("--on", type=str, required=True, help="Column to merge on")
 @click.option(
     "--method",
@@ -108,15 +107,15 @@ def uncluster_command(fout, spreadsheet, column, pseudonyms, format):
     help="Generatated spreadsheet format",
 )
 @gr1.command(help="""Merge two spreadsheets on the given column""")
-def merge(fout, l, r, on, method, pseudonyms, format):
+def merge(fout, left, right, on, method, pseudonyms, format):
     pseudonyms = read_pseodonyms(pseudonyms)
-    left = extract_columns_by_pseudonyms(read_file_to_df(l), pseudonyms)
-    right = extract_columns_by_pseudonyms(read_file_to_df(r), pseudonyms)
-    df = left.merge(
-        right, on=on, how=method
+    left_df = extract_columns_by_pseudonyms(read_file_to_df(left), pseudonyms)
+    right_df = extract_columns_by_pseudonyms(read_file_to_df(right), pseudonyms)
+    df = left_df.merge(
+        right_df, on=on, how=method
     )  # include all DNPs, unknown parts won't cause an error
-    fname_l = os.path.split(os.path.splitext(l)[0])[-1]
-    fname_r = os.path.split(os.path.splitext(r)[0])[-1]
+    fname_l = Path(left).stem
+    fname_r = Path(right).stem
     if fout is None:
         fname = f"{fname_l}_Merged{fname_r}_On_{on}.{format}"
     else:
@@ -124,8 +123,8 @@ def merge(fout, l, r, on, method, pseudonyms, format):
     write(df, fname, index=False)
 
 
-@click.option("-l", type=str, required=True, help="First spreadsheet")
-@click.option("-r", type=str, required=True, help="Second spreadsheet")
+@click.option("--left", "-l", type=str, required=True, help="First spreadsheet")
+@click.option("--right", "-r", type=str, required=True, help="Second spreadsheet")
 @click.option("--on", type=str, default=None, help="Column to compare on")
 @click.option(
     "--columns",
@@ -146,14 +145,14 @@ def merge(fout, l, r, on, method, pseudonyms, format):
     "compare",
     help="Compares the given columns, passes if all given columns exist in both files and values are the same",
 )
-def compare_command(l, r, on, columns, pseudonyms):
+def compare_command(left, right, on, columns, pseudonyms):
     pseudonyms = read_pseodonyms(pseudonyms)
-    left = extract_columns_by_pseudonyms(read_file_to_df(l), pseudonyms)
-    right = extract_columns_by_pseudonyms(read_file_to_df(r), pseudonyms)
+    left_df = extract_columns_by_pseudonyms(read_file_to_df(left), pseudonyms)
+    right_df = extract_columns_by_pseudonyms(read_file_to_df(right), pseudonyms)
     if columns is None:
-        columns = set(left.columns).intersection(set(right.columns))
+        columns = set(left_df.columns).intersection(set(right_df.columns))
 
-    errors = compare(left, right, columns, on)
+    errors = compare(left_df, right_df, columns, on)
     print("Comparing columns:", columns)
     for _, row in pd.DataFrame(errors).iterrows():
         print(
@@ -354,14 +353,14 @@ def sort_lines_in_column(fin, fout, column, delimiter, pseudonyms, regex, format
 @gr1.command("export-sheet", help="Export a single sheet of a spreadsheet")
 def export_sheet(fin, fout, page, format):
     """Export a single sheet of a spreadsheet"""
-    path, ext = os.path.splitext(fin)
-    base = Path(path).name
+    path = Path(fin)
+    base = path.stem
 
     fname = fout
     if fout is None:
         fname = f"{base}{page}.{format}"
 
-    if ext.lower() == "csv":  # no pages for a csv
+    if path.suffix.lower() == ".csv":  # no pages for a csv
         df = read_file_to_df(fin)
     else:
         df = pd.read_excel(fin, sheet_name=page)
