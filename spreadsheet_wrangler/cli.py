@@ -1,20 +1,20 @@
 """Console script for spreadsheet_wrangler."""
 
 import re
+from pathlib import Path
+
 import click
 import pandas as pd
-from pathlib import Path
-from . import (
-    write,
-    get_supported_file_formats,
-    read_pseodonyms,
-    extract_columns_by_pseudonyms,
-    read_file_to_df,
-    cluster,
-    uncluster,
-    compare,
-    select_on_value,
-)
+
+from . import cluster
+from . import compare
+from . import extract_columns_by_pseudonyms
+from . import get_supported_file_formats
+from . import read_file_to_df
+from . import read_pseodonyms
+from . import select_on_value
+from . import uncluster
+from . import write
 
 
 @click.group()
@@ -37,17 +37,18 @@ def gr1():
 )
 @click.option(
     "--format",
+    "format_",
     type=click.Choice(get_supported_file_formats()),
     default="xlsx",
     help="Generatated spreadsheet format",
 )
 @gr1.command("cluster", help="""Cluster spreadsheet by column value""")
-def cluster_command(fout, spreadsheet, on, column, pseudonyms, format):
+def cluster_command(fout, spreadsheet, on, column, pseudonyms, format_):
     pseudonyms = read_pseodonyms(pseudonyms)
     df = extract_columns_by_pseudonyms(read_file_to_df(spreadsheet), pseudonyms)
     if fout is None:
         base = Path(spreadsheet).stem
-        fname = f"{base}_Clustered_On_{column}.{format}"
+        fname = f"{base}_Clustered_On_{column}.{format_}"
     else:
         fname = fout
     clustered_df = cluster(df, on, column)
@@ -67,17 +68,18 @@ def cluster_command(fout, spreadsheet, on, column, pseudonyms, format):
 )
 @click.option(
     "--format",
+    "format_",
     type=click.Choice(get_supported_file_formats()),
     default="xlsx",
     help="Generatated spreadsheet format",
 )
 @gr1.command("uncluster", help="""Uncluster spreadsheet by column value""")
-def uncluster_command(fout, spreadsheet, column, pseudonyms, format):
+def uncluster_command(fout, spreadsheet, column, pseudonyms, format_):
     pseudonyms = read_pseodonyms(pseudonyms)
     df = extract_columns_by_pseudonyms(read_file_to_df(spreadsheet), pseudonyms)
     if fout is None:
         base = Path(spreadsheet).stem
-        fname = f"{base}_Unclustered_On_{column}.{format}"
+        fname = f"{base}_Unclustered_On_{column}.{format_}"
     else:
         fname = fout
     write(uncluster(df, column), fname, index=False)
@@ -102,12 +104,13 @@ def uncluster_command(fout, spreadsheet, column, pseudonyms, format):
 )
 @click.option(
     "--format",
+    "format_",
     type=click.Choice(get_supported_file_formats()),
     default="xlsx",
     help="Generatated spreadsheet format",
 )
 @gr1.command(help="""Merge two spreadsheets on the given column""")
-def merge(fout, left, right, on, method, pseudonyms, format):
+def merge(fout, left, right, on, method, pseudonyms, format_):
     pseudonyms = read_pseodonyms(pseudonyms)
     left_df = extract_columns_by_pseudonyms(read_file_to_df(left), pseudonyms)
     right_df = extract_columns_by_pseudonyms(read_file_to_df(right), pseudonyms)
@@ -116,10 +119,7 @@ def merge(fout, left, right, on, method, pseudonyms, format):
     )  # include all DNPs, unknown parts won't cause an error
     fname_l = Path(left).stem
     fname_r = Path(right).stem
-    if fout is None:
-        fname = f"{fname_l}_Merged{fname_r}_On_{on}.{format}"
-    else:
-        fname = fout
+    fname = f"{fname_l}_Merged{fname_r}_On_{on}.{format_}" if fout is None else fout
     write(df, fname, index=False)
 
 
@@ -153,13 +153,8 @@ def compare_command(left, right, on, columns, pseudonyms):
         columns = set(left_df.columns).intersection(set(right_df.columns))
 
     errors = compare(left_df, right_df, columns, on)
-    print("Comparing columns:", columns)
-    for _, row in pd.DataFrame(errors).iterrows():
-        print(
-            "[{}:{}] Comparison Failure: {}".format(
-                row["column"], row["line"], row["description"]
-            )
-        )
+    for _, _row in pd.DataFrame(errors).iterrows():
+        pass
 
 
 @click.option("--fin", "-i", type=str, required=True, help="Input spreadsheet")
@@ -180,6 +175,7 @@ def compare_command(left, right, on, columns, pseudonyms):
 )
 @click.option(
     "--format",
+    "format_",
     type=click.Choice(get_supported_file_formats()),
     default="xlsx",
     help="Generatated spreadsheet format",
@@ -188,7 +184,7 @@ def compare_command(left, right, on, columns, pseudonyms):
     "filter",
     help="Compares the given columns, selects the row if all given columns exist in both files and values are the same",
 )
-def filter_command(fin, fout, value, column, blank_defaults, pseudonyms, format):
+def filter_command(fin, fout, value, column, blank_defaults, pseudonyms, format_):
     pseudonyms = read_pseodonyms(pseudonyms)
     df = extract_columns_by_pseudonyms(read_file_to_df(fin), pseudonyms)
     filtered_df = select_on_value(
@@ -196,7 +192,7 @@ def filter_command(fin, fout, value, column, blank_defaults, pseudonyms, format)
     )
     if fout is None:
         base = Path(fin).stem
-        fname = f"{base}_Filtered_On_{column}_by_{value}.{format}"
+        fname = f"{base}_Filtered_On_{column}_by_{value}.{format_}"
     else:
         fname = fout
     write(filtered_df, fname, index=False)
@@ -213,6 +209,7 @@ def filter_command(fin, fout, value, column, blank_defaults, pseudonyms, format)
 )
 @click.option(
     "--format",
+    "format_",
     type=click.Choice(get_supported_file_formats()),
     default="xlsx",
     help="Generatated spreadsheet format",
@@ -221,16 +218,13 @@ def filter_command(fin, fout, value, column, blank_defaults, pseudonyms, format)
     "translate",
     help="Compares the given columns, passes if all given columns exist in both files and values are the same",
 )
-def translate_command(fin, fout, pseudonyms, format):
+def translate_command(fin, fout, pseudonyms, format_):
     pseudonyms = read_pseodonyms(pseudonyms)
     df = extract_columns_by_pseudonyms(read_file_to_df(fin), pseudonyms)
 
     if fout is None:
         base = Path(fin).stem
-        if format is not None:
-            fout = f"{base}.{format}"
-        else:
-            fout = fin
+        fout = f"{base}.{format_}" if format_ is not None else fin
 
     write(df, fout, index=False)
 
@@ -240,7 +234,7 @@ def translate_command(fin, fout, pseudonyms, format):
 @gr1.command("to_md", help="Generate a markdown table")
 def to_md(fin, fout):
     df = read_file_to_df(fin)
-    with open(fout, "w") as f:
+    with Path(fout).open("w") as f:
         f.write(df.to_markdown())
 
 
@@ -260,6 +254,7 @@ def to_md(fin, fout):
 )
 @click.option(
     "--format",
+    "format_",
     type=click.Choice(get_supported_file_formats()),
     default="xlsx",
     help="Generatated spreadsheet format",
@@ -267,7 +262,7 @@ def to_md(fin, fout):
 @gr1.command(
     "delimiter", help="Replace a delimiter with a new one, ex. replace tabs with commas"
 )
-def delimiter_command(fin, fout, column, delimiter, new_delimiter, pseudonyms, format):
+def delimiter_command(fin, fout, column, delimiter, new_delimiter, pseudonyms, format_):
     pseudonyms = read_pseodonyms(pseudonyms)
     df = extract_columns_by_pseudonyms(read_file_to_df(fin), pseudonyms)
     col = []
@@ -277,7 +272,7 @@ def delimiter_command(fin, fout, column, delimiter, new_delimiter, pseudonyms, f
 
     if fout is None:
         base = Path(fin).stem
-        fname = f"{base}_Delimiter_replaced_{column}.{format}"
+        fname = f"{base}_Delimiter_replaced_{column}.{format_}"
     else:
         fname = fout
 
@@ -301,17 +296,18 @@ def delimiter_command(fin, fout, column, delimiter, new_delimiter, pseudonyms, f
     "--regex",
     "-r",
     type=str,
-    default="(\(?\+?[0-9]*\)?)?[0-9_\- \(\)]",
+    default=r"(\(?\+?[0-9]*\)?)?[0-9_\- \(\)]",
     help="Regex expression to sort by, defaults to taking the first number",
 )
 @click.option(
     "--format",
+    "format_",
     type=click.Choice(get_supported_file_formats()),
     default="xlsx",
     help="Generatated spreadsheet format",
 )
 @gr1.command("sort-column", help="")
-def sort_lines_in_column(fin, fout, column, delimiter, pseudonyms, regex, format):
+def sort_lines_in_column(fin, fout, column, delimiter, pseudonyms, regex, format_):
     """Break a line by delimiter, sort by number if found otherwise by string"""
     pseudonyms = read_pseodonyms(pseudonyms)
     df = extract_columns_by_pseudonyms(read_file_to_df(fin), pseudonyms)
@@ -335,7 +331,7 @@ def sort_lines_in_column(fin, fout, column, delimiter, pseudonyms, regex, format
     df[column] = col
     if fout is None:
         base = Path(fin).stem
-        fname = f"{base}_Sorted_{column}.{format}"
+        fname = f"{base}_Sorted_{column}.{format_}"
     else:
         fname = fout
     write(df, fname, index=False)
@@ -346,19 +342,20 @@ def sort_lines_in_column(fin, fout, column, delimiter, pseudonyms, regex, format
 @click.option("--page", type=str, required=True, help="Page name to export")
 @click.option(
     "--format",
+    "format_",
     type=click.Choice(get_supported_file_formats()),
     default="xlsx",
     help="Generatated spreadsheet format",
 )
 @gr1.command("export-sheet", help="Export a single sheet of a spreadsheet")
-def export_sheet(fin, fout, page, format):
+def export_sheet(fin, fout, page, format_):
     """Export a single sheet of a spreadsheet"""
     path = Path(fin)
     base = path.stem
 
     fname = fout
     if fout is None:
-        fname = f"{base}{page}.{format}"
+        fname = f"{base}{page}.{format_}"
 
     if path.suffix.lower() == ".csv":  # no pages for a csv
         df = read_file_to_df(fin)

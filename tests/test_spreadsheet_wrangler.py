@@ -1,6 +1,8 @@
-from spreadsheet_wrangler import cluster
 import unittest
+
 import pandas as pd
+
+from spreadsheet_wrangler import cluster
 
 
 class TestCluster(unittest.TestCase):
@@ -25,8 +27,8 @@ class TestCluster(unittest.TestCase):
         )
 
         for column in df.columns:
-            for left, right in zip(clustered[column], expected[column]):
-                self.assertEqual(left, right)
+            for left, right in zip(clustered[column], expected[column], strict=False):
+                assert left == right
 
     # cluster unique by cola and additional
     def test_multi_column_unique_cluster(self):
@@ -49,8 +51,8 @@ class TestCluster(unittest.TestCase):
         )
 
         for column in df.columns:
-            for left, right in zip(clustered[column], expected[column]):
-                self.assertEqual(left, right)
+            for left, right in zip(clustered[column], expected[column], strict=False):
+                assert left == right
 
 
 if __name__ == "__main__":

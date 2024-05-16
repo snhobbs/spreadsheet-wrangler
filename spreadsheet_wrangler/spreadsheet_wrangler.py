@@ -2,14 +2,15 @@
 spreadsheet_wrangler.py
 """
 
-import pandas as pd  # type: ignore
-import csv
-import os
-import numpy as np  # type: ignore
-import copy
 import ast
+import copy
+import csv
 import json
 import re
+from pathlib import Path
+
+import numpy as np  # type: ignore
+import pandas as pd  # type: ignore
 
 # from pandas_ods_reader import read_ods
 import pyexcel_ods3
@@ -32,21 +33,19 @@ def make_unique(df: pd.DataFrame, column: str, prefer_column=None):
 
     not_unique_values = [val for val in df[column] if list(df[column]).count(val) > 1]
     for value in not_unique_values:
-        print(value)
         while list(df[column]).count(value) > 1:
             drop_rows = []
             if prefer_column is None:
-                for i, row in df[df[column] == value].iterrows():
+                for i, _ in df[df[column] == value].iterrows():
                     drop_rows.append(i)
                 drop_rows.pop()  # keep last row
             else:
-                print(value)
                 matching = df[df[column] == value][prefer_column]
                 min_length = min([str(pt) for pt in matching])
                 for i, row in df[df[column] == value].iterrows():
                     if len(str(row[prefer_column])) == min_length:
                         drop_rows.append(i)
-            df.drop(df.index[drop_rows], inplace=True)
+            df = df.drop(df.index[drop_rows])
     return df
 
 
@@ -58,7 +57,7 @@ def extract_columns_by_pseudonyms(df: pd.DataFrame, column_names: dict) -> pd.Da
                 name.lower() in [pt.lower() for pt in names]
                 or name.lower() == column.lower()
             ):
-                df.rename(columns={name: column}, inplace=True)
+                df = df.rename(columns={name: column})
     return df
 
 
@@ -69,41 +68,34 @@ def read_csv_to_df(fname: str, **kwargs) -> pd.DataFrame:
         # Use automatic dialect detection by setting sep to None and engine to python
         kwargs["sep"] = None
         kwargs["delimiter"] = None
-        df = pd.read_csv(fname, engine="python", **kwargs)
-        return df
-    except Exception as e:
-        print(e)
+        return pd.read_csv(fname, engine="python", **kwargs)
+    except Exception:
         pass
     try:
         kwargs["sep"] = ","
-        df = pd.read_csv(fname, **kwargs)
-        return df
-    except Exception as e:
-        print(e)
+        return pd.read_csv(fname, **kwargs)
+    except Exception:
         pass
     try:
         kwargs["sep"] = ";"
-        df = pd.read_csv(fname, **kwargs)
-        return df
+        return pd.read_csv(fname, **kwargs)
     except Exception:
         raise
 
 
-def read_ods_format_to_df(fname, **kwargs):
+def read_ods_format_to_df(fname: str, **kwargs) -> pd.DataFrame:
     data = pyexcel_ods3.get_data(fname, **kwargs)
     ave_line_length = np.mean([len(line) for line in data])
-    data_lines = []
-    for line in data:
-        if len(line) >= ave_line_length:  # assume this is the data
-            data_lines.append(line)
+    data_lines = [
+        line for line in data if len(line) >= ave_line_length
+    ]  # assume this is the data
     header = data_lines[0]
     data_lines = data_lines[1:]
-    df_dict = dict([(column, []) for column in header])
+    df_dict = {column: [] for column in header}
     for line in data_lines:
-        for column, pt in zip(df_dict.keys(), line):
+        for column, pt in zip(df_dict.keys(), line, strict=False):
             df_dict[column].append(pt)
-    df = pd.DataFrame(df_dict)
-    return df
+    return pd.DataFrame(df_dict)
 
 
 def get_supported_file_types_df():
@@ -113,30 +105,30 @@ def get_supported_file_types_df():
     return [
         {
             "title": "text",
-            "kwargs": dict(
-                header=0,
-                skipinitialspace=True,
-                index_col=None,
-                comment="#",
-                quotechar='"',
-                quoting=csv.QUOTE_MINIMAL,
-                engine="python",
-                skip_blank_lines=True,
-            ),
+            "kwargs": {
+                "header": 0,
+                "skipinitialspace": True,
+                "index_col": None,
+                "comment": "#",
+                "quotechar": '"',
+                "quoting": csv.QUOTE_MINIMAL,
+                "engine": "python",
+                "skip_blank_lines": True,
+            },
             "extensions": ("csv", "txt"),
             "writedf": pd.DataFrame.to_csv,
             "readf": read_csv_to_df,
         },
         {
             "title": "excel",
-            "kwargs": dict(sheet_name=0, header=0, skiprows=0),
+            "kwargs": {"sheet_name": 0, "header": 0, "skiprows": 0},
             "extensions": ("xls", "xlsx", "xlsm", "xlsb"),
             "writedf": pd.DataFrame.to_excel,
             "readf": pd.read_excel,
         },
         {
             "title": "ods",
-            "kwargs": dict(sheet_name=0, header=0, skiprows=0),
+            "kwargs": {"sheet_name": 0, "header": 0, "skiprows": 0},
             "extensions": ("ods", "odt", "odf"),
             "writedf": None,
             "readf": read_ods_format_to_df,
@@ -144,7 +136,7 @@ def get_supported_file_types_df():
     ]
 
 
-def get_supported_file_formats():
+def get_supported_file_formats() -> tuple[str]:
     """
     returns collection of all the supported extensions
     """
@@ -155,13 +147,15 @@ def get_supported_file_formats():
 
 
 def write(df: pd.DataFrame, fname: str, **kwargs) -> None:
-    base, ext = os.path.splitext(fname)
+    ext = Path(fname).suffix.strip(".").lower()
     types = get_supported_file_types_df()
     writer = None
     for value in types:
-        if ext.strip(".").lower() in value["extensions"]:
+        if ext in value["extensions"]:
             writer = value["writedf"]
+            break
 
+    assert writer
     writer(df, fname, **kwargs)
 
 
@@ -169,9 +163,7 @@ def read_file_to_df(fname: str, **kwargs) -> pd.DataFrame:
     """
     Cycle through extensions, use the reader object to call
     """
-    name, ext = os.path.splitext(fname)
-    ext = ext.strip(".")
-    ext = ext.lower()
+    ext = Path(fname).suffix.strip(".").lower()
     df = None
     found = False
     for reader in get_supported_file_types_df():
@@ -182,7 +174,8 @@ def read_file_to_df(fname: str, **kwargs) -> pd.DataFrame:
             df = reader["readf"](fname, **kwargs)
             break
     if not found:
-        raise UserWarning(f"Extension {ext} unsupported")
+        msg = f"Extension {ext} unsupported"
+        raise UserWarning(msg)
     return pd.DataFrame(df)
 
 
@@ -194,8 +187,7 @@ def uncluster_ast(df: pd.DataFrame, grouped_column: str) -> pd.DataFrame:
         for item in group:
             row[grouped_column] = item
             expanded_rows.append(copy.deepcopy(row))
-    expanded_df = pd.DataFrame(expanded_rows)
-    return expanded_df
+    return pd.DataFrame(expanded_rows)
 
 
 def uncluster_regex(
@@ -211,8 +203,7 @@ def uncluster_regex(
         for ref in ref_regex.findall(refs):
             row[grouped_column] = ref
             expanded_rows.append(copy.deepcopy(row))
-    expanded_df = pd.DataFrame(expanded_rows)
-    return expanded_df
+    return pd.DataFrame(expanded_rows)
 
 
 def uncluster(df: pd.DataFrame, grouped_column: str) -> pd.DataFrame:
@@ -223,9 +214,11 @@ def cluster(df: pd.DataFrame, on: list, column: str) -> pd.DataFrame:
     """ref-des will not be a tuple of all the matching lines, the rest of the line is taken to be the first in the file and carried forward"""
     for pt in on:
         if pt not in df.columns:
-            raise KeyError(f"column {pt} or pseudonym not found")
+            msg = f"column {pt} or pseudonym not found"
+            raise KeyError(msg)
     if column not in df.columns:
-        raise KeyError(f"column {column} or pseudonym not found")
+        msg = f"column {column} or pseudonym not found"
+        raise KeyError(msg)
 
     grouped = df.groupby(
         by=list(on)
@@ -235,7 +228,7 @@ def cluster(df: pd.DataFrame, on: list, column: str) -> pd.DataFrame:
 
     for _, group in grouped:
         cluster_entries = []
-        for i, row in group.iterrows():
+        for _i, row in group.iterrows():
             cluster_entries.append(row[column])
         copy_row = copy.deepcopy(row)
         rows.append(copy_row)
@@ -243,7 +236,7 @@ def cluster(df: pd.DataFrame, on: list, column: str) -> pd.DataFrame:
 
     df = pd.DataFrame(rows)
     index = df.columns.get_indexer_for([column])[0]
-    df.drop(columns=[column], inplace=True)
+    df = df.drop(columns=[column])
     df.insert(int(index), column=column, value=clustered)
     return df
 
@@ -254,7 +247,9 @@ def compare(left: pd.DataFrame, right: pd.DataFrame, columns: str, on: str) -> d
         matching_rows_left = left[left[on] == pt]
         matching_rows_right = right[right[on] == pt]
         for column in columns:
-            for lc, rc in zip(matching_rows_left[column], matching_rows_right[column]):
+            for lc, rc in zip(
+                matching_rows_left[column], matching_rows_right[column], strict=False
+            ):
                 if lc != rc:
                     # filter out nan
                     if lc is np.nan and rc is np.nan:
@@ -262,7 +257,7 @@ def compare(left: pd.DataFrame, right: pd.DataFrame, columns: str, on: str) -> d
                     errors["line"].append(pt)
                     errors["column"].append(column)
                     errors["description"].append(
-                        "{} ({}) != {} ({})".format(lc, type(lc), rc, type(rc))
+                        f"{lc} ({type(lc)}) != {rc} ({type(rc)})"
                     )
     return errors
 
@@ -292,4 +287,3 @@ def filter_df(
     """
     Returns the rows that both match
     """
-    pass
