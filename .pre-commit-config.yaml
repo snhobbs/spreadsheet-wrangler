@@ -2,7 +2,7 @@ exclude: '^docs/|/migrations/|devcontainer.json'
 default_stages: [commit]
 
 default_language_version:
-  python: python3.11
+  python: python3.12
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -29,12 +29,6 @@ repos:
         args: [--fix, --exit-non-zero-on-fix]
       # Formatter
       - id: ruff-format
-
-  - repo: https://github.com/Riverside-Healthcare/djLint
-    rev: v1.34.1
-    hooks:
-      - id: djlint-reformat-django
-      - id: djlint-django
 
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: 'v1.10.0'  # Use the sha / tag you want to point at
