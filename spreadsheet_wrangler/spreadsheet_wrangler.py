@@ -5,12 +5,14 @@ spreadsheet_wrangler.py
 import ast
 import copy
 import json
+import logging
 import re
 
-import numpy as np  # type: ignore
-import pandas as pd  # type: ignore
+import numpy as np
+import pandas as pd
 
-from .file_io import *
+log_ = logging.getLogger("spreadsheet-wrangler")
+# from .file_io import *
 
 
 def read_pseodonyms(string: str) -> dict:
@@ -141,16 +143,14 @@ def compare(left: pd.DataFrame, right: pd.DataFrame, columns: str, on: str) -> d
     return errors
 
 
-def select_on_value(df: pd.DataFrame, value, column: str, blank_defaults: bool):
+def select_on_value(
+    df: pd.DataFrame, value, column: str, *, blank_defaults: bool = True
+):
     """
     Selects all rows that match the value in the given column
     """
     match = [str(pt).lower() == str(value).lower() for pt in df[column]]
-    if blank_defaults:
-        filtered_df = df.loc[(match) | (df[column].isnull())]
-    else:
-        filtered_df = df.loc[(match)]
-    return filtered_df
+    return df.loc[match | df[column].isna()] if blank_defaults else df.loc[match]
 
 
 # def get_unique(df: pd.DataFrame, column: str, blank_defaults: bool) -> pd.DataFrame:
@@ -161,7 +161,7 @@ def select_on_value(df: pd.DataFrame, value, column: str, blank_defaults: bool):
 
 
 def filter_df(
-    df: pd.DataFrame, on: str, value, column: str, blank_defaults: bool
+    df: pd.DataFrame, on: str, value, column: str, *, blank_defaults: bool = True
 ) -> pd.DataFrame:
     """
     Returns the rows that both match

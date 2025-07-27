@@ -1,8 +1,11 @@
 import csv
+import logging
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
+
+log_ = logging.getLogger("spreadsheet-wrangler")
 
 
 def read_csv_to_df(fname: str, **kwargs) -> pd.DataFrame:
@@ -13,18 +16,18 @@ def read_csv_to_df(fname: str, **kwargs) -> pd.DataFrame:
         kwargs["sep"] = None
         kwargs["delimiter"] = None
         return pd.read_csv(fname, engine="python", **kwargs)
-    except Exception:
-        pass
+    except Exception as e:
+        msg = str(e)
+        log_.warning(msg)
     try:
         kwargs["sep"] = ","
         return pd.read_csv(fname, **kwargs)
-    except Exception:
-        pass
-    try:
-        kwargs["sep"] = ";"
-        return pd.read_csv(fname, **kwargs)
-    except Exception:
-        raise
+    except Exception as e:
+        msg = str(e)
+        log_.warning(msg)
+
+    kwargs["sep"] = ";"
+    return pd.read_csv(fname, **kwargs)
 
 
 def read_ods_format_to_df(fname: str, **kwargs) -> pd.DataFrame:

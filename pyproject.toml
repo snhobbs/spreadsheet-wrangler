@@ -182,6 +182,8 @@ ignore = [
   "E501",   # line too long
   "PD901",  # generic names
   "ERA001", # commented out code
+  "PLR0913",
+  "BLE001",
 ]
 # Allow fix for all enabled rules (when `--fix`) is provided.
 fixable = ["ALL"]

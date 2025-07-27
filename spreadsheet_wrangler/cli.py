@@ -9,12 +9,12 @@ import pandas as pd
 from . import cluster
 from . import compare
 from . import extract_columns_by_pseudonyms
-from . import get_supported_file_formats
-from . import read_file_to_df
 from . import read_pseodonyms
 from . import select_on_value
 from . import uncluster
 from . import write
+from .file_io import get_supported_file_formats
+from .file_io import read_file_to_df
 
 
 @click.group()
